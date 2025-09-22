@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Chatbot with Docs + Auth</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9f9f9; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+    header { background: #2c3e50; color: white; padding: 15px; text-align: center; font-size: 20px; }
+    .container { display: flex; flex: 1; overflow: hidden; }
+    .sidebar { width: 250px; background: #ecf0f1; padding: 15px; border-right: 1px solid #ccc; overflow-y: auto; }
+    .main { flex: 1; display: flex; flex-direction: column; padding: 15px; }
+    .chat-box { flex: 1; border: 1px solid #ddd; border-radius: 6px; background: white; padding: 10px; overflow-y: auto; margin-bottom: 10px; }
+    .msg { margin-bottom: 12px; line-height: 1.4em; }
+    .user { font-weight: bold; color: #2980b9; }
+    .assistant { font-weight: bold; color: #27ae60; }
+    textarea { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; resize: none; }
+    button { margin-top: 5px; padding: 8px 14px; border: none; border-radius: 6px; background: #2c3e50; color: white; cursor: pointer; }
+    button:hover { background: #34495e; }
+    .hidden { display: none; }
+    .auth-box { margin-bottom: 20px; }
+    input { width: 100%; padding: 6px; margin: 6px 0; border-radius: 4px; border: 1px solid #ccc; }
+    select { width: 100%; padding: 6px; margin: 6px 0; border-radius: 4px; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <header> AI Chatbot </header>
+  <div class="container">
+    <div class="sidebar">
+      <div id="auth-section">
+        <div class="auth-box">
+          <h3>Register</h3>
+          <input id="reg-email" placeholder="Email">
+          <input id="reg-password" type="password" placeholder="Password">
+          <button onclick="registerUser()">Register</button>
+        </div>
+        <div class="auth-box">
+          <h3>Login</h3>
+          <input id="login-email" placeholder="Email">
+          <input id="login-password" type="password" placeholder="Password">
+          <button onclick="loginUser()">Login</button>
+        </div>
+      </div>
+      <div id="project-section" class="hidden">
+        <h3>Projects</h3>
+        <input id="project-name" placeholder="Project Name">
+        <button onclick="createProject()">Create Project</button>
+        <select id="projectSelect"></select>
+      </div>
+      <div id="upload-section" class="hidden">
+        <h3>Upload Document</h3>
+        <input type="file" id="fileInput">
+        <button onclick="uploadFile()">Upload</button>
+        <div id="uploadResult"></div>
+      </div>
+    </div>
+    <div class="main">
+      <div class="chat-box" id="chatBox"></div>
+      <div class="hidden" id="chat-input-box">
+        <textarea id="prompt" rows="3" placeholder="Ask something about your documents..."></textarea><br/>
+        <button onclick="sendChat()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:8000";
+    let token = null;
+    let currentProjectId = null;
+
+    function addMessage(role, text) {
+      const box = document.getElementById("chatBox");
+      const div = document.createElement("div");
+      div.className = "msg";
+      div.innerHTML = `<span class="${role}">${role}:</span> ${text}`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // -------- AUTH --------
+    async function registerUser() {
+      const email = document.getElementById("reg-email").value;
+      const password = document.getElementById("reg-password").value;
+      const fd = new FormData();
+      fd.append("email", email);
+      fd.append("password", password);
+      let res = await fetch(`${API_BASE}/register`, { method: "POST", body: fd });
+      let data = await res.json();
+      alert(data.msg || data.detail);
+    }
+
+    async function loginUser() {
+      const email = document.getElementById("login-email").value;
+      const password = document.getElementById("login-password").value;
+      const fd = new FormData();
+      fd.append("email", email);
+      fd.append("password", password);
+      let res = await fetch(`${API_BASE}/login`, { method: "POST", body: fd });
+      let data = await res.json();
+      if (data.access_token) {
+        token = data.access_token;
+        document.getElementById("auth-section").classList.add("hidden");
+        document.getElementById("project-section").classList.remove("hidden");
+        document.getElementById("upload-section").classList.remove("hidden");
+        document.getElementById("chat-input-box").classList.remove("hidden");
+        await loadProjects();
+        alert("Login successful!");
+      } else {
+        alert(data.detail || "Login failed");
+      }
+    }
+
+    // -------- PROJECTS --------
+    async function createProject() {
+      if (!token) return alert("Login first");
+      const name = document.getElementById("project-name").value;
+      const fd = new FormData();
+      fd.append("name", name);
+      fd.append("token", token);
+      let res = await fetch(`${API_BASE}/projects/create`, { method: "POST", body: fd });
+      let data = await res.json();
+      await loadProjects();
+      alert("Project created!");
+    }
+
+    async function loadProjects() {
+      const res = await fetch(`${API_BASE}/projects/list?token=${token}`);
+      const data = await res.json();
+      const select = document.getElementById("projectSelect");
+      select.innerHTML = "";
+      data.projects.forEach(p => {
+        let opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.name;
+        select.appendChild(opt);
+      });
+      if (data.projects.length > 0) {
+        currentProjectId = data.projects[0].id;
+        select.value = currentProjectId;
+      }
+      select.onchange = () => {
+        currentProjectId = select.value;
+      }
+    }
+
+    // -------- UPLOAD --------
+    async function uploadFile() {
+      if (!token) { alert("Please login first"); return; }
+      if (!currentProjectId) { alert("Please create/select a project"); return; }
+      const fileInput = document.getElementById("fileInput");
+      if (!fileInput.files.length) {
+        alert("Please choose a file first");
+        return;
+      }
+      const fd = new FormData();
+      fd.append("file", fileInput.files[0]);
+      fd.append("token", token);
+      fd.append("project_id", currentProjectId);
+
+      const res = await fetch(`${API_BASE}/upload`, { method: "POST", body: fd });
+      const data = await res.json();
+      document.getElementById("uploadResult").innerText =
+        "Uploaded: " + data.filename + " (snippet: " + (data.text_snippet || "").slice(0, 100) + "...)";
+    }
+
+    // -------- CHAT --------
+    async function sendChat() {
+      if (!token) { alert("Please login first"); return; }
+      if (!currentProjectId) { alert("Please create/select a project"); return; }
+      const promptEl = document.getElementById("prompt");
+      const prompt = promptEl.value.trim();
+      if (!prompt) return;
+
+      addMessage("user", prompt);
+      promptEl.value = "";
+
+      const res = await fetch(`${API_BASE}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: currentProjectId, prompt, token })
+      });
+      const data = await res.json();
+      const reply = data.reply || data.error || "No reply";
+      addMessage("assistant", reply);
+    }
+  </script>
+</body>
+</html>
