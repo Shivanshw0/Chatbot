@@ -5,6 +5,13 @@ It supports authentication, project/agent creation, document uploads, and contex
 
 ---
 
+## Live Demo
+
+You can try the hosted version here:  
+[https://chatbot-4-jvnz.onrender.com/](https://chatbot-4-jvnz.onrender.com/)
+
+---
+
 ## Features
 
 ### Authentication
@@ -90,34 +97,28 @@ WEB_CHATBOT/
 
 6. Open the app in your browser:
    ```
-   http://127.0.0.1:8000
+   http://127.0.0.1:8000/
    ```
 
 ---
 
 ## Deployment
 
-You can deploy this project for free using [Render](https://render.com) or [Railway](https://railway.app).  
-For Render:
-- Connect the GitHub repository
-- Set the **start command**:
-  ```bash
-  uvicorn main:app --host 0.0.0.0 --port 10000
-  ```
-- Add environment variables from `.env`
-- Deploy and access your app at `https://<your-app>.onrender.com`
+This project is deployed on **Render**.  
+To deploy your own version:
+1. Push your code to GitHub
+2. Create a new **Web Service** on [Render](https://render.com/)
+3. Connect your GitHub repo
+4. Set build command:
+   ```bash
+   pip install -r backend/requirements.txt
+   ```
+5. Set start command:
+   ```bash
+   uvicorn backend.main:app --host 0.0.0.0 --port 10000
+   ```
+6. Add environment variables in the Render dashboard (`OPENAI_API_KEY`, `OPENAI_MODEL`, `SECRET_KEY`)
+
+Your app will be live at a Render-provided URL.
 
 ---
-
-## Extensibility
-
-The project is designed to be extended easily:
-- Replace in-memory dictionaries with a database (e.g. PostgreSQL, SQLite)
-- Add integrations with other LLM providers
-- Implement analytics, logging, or agent workflows
-
----
-
-## License
-
-This project is for demonstration and educational purposes.  
