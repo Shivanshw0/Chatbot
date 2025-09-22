@@ -20,7 +20,6 @@ import docx
 
 # For serving frontend
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
@@ -72,9 +71,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---------------- Frontend ----------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 @app.get("/")
 async def serve_frontend():
-    return FileResponse("index.html")
+    return FileResponse(os.path.join(BASE_DIR, "index.html"))
 
 # ---------------- Auth Endpoints ----------------
 @app.post("/register")
@@ -289,3 +291,4 @@ async def chat(req: ChatRequest):
     )
 
     return {"reply": answer_text, "user": email}
+
